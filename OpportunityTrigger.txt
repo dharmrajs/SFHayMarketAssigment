@@ -1,0 +1,21 @@
+/*
+ * @description : This trigger gets triggered on opportunity object activity before insert and before update activity
+ * @author : Dharmraj Sharma
+ * @createdDate : 16 July 2024
+*/
+trigger OpportunityTrigger on Opportunity (before insert, before update) {
+
+    //Cyclomatic complexity will be 2 APEX PMD will pass
+    if(Trigger.isBefore) {
+        //Calculate expected revenue and update opportunity stage in before event of insert and update
+        if(Trigger.isInsert || Trigger.isUpdate) {
+            //calExpectedRevenue is bulkified
+        	OpportunityTriggerHandler.calExpectedRevenue(Trigger.new);
+            //updateOpportunityStage is bulkified
+            OpportunityTriggerHandler.updateOpportunityStage(Trigger.new);
+        }   
+    } else {
+        //Peform after events bussiness logic
+    }
+    
+}

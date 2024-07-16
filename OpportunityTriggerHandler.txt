@@ -1,0 +1,62 @@
+/*
+ * @description : This class acts as trigger handler for opportunity object which has all the methods needed by opportunity trigger. This class runs in with sharing mode so need to
+ * 				 give this class access to required profiles.
+ * @author : Dharmraj Sharma
+ * @createdDate : 16 July 2024
+*/
+public with sharing class OpportunityTriggerHandler {
+    
+    /*
+     * @description : This methods calculates the expected revenue for opportunity based on the intrested products and thier prices maintained by custom metadata. Reason the prices 
+     * 					are saved in metadata is because we can keep track of who changed the price when using git because metadata are deployable and packageable but custom settings
+     * 					are not.
+     * @param : opportunities typeOf List<Opportunity>
+     * @return: void
+     * @author: Dharmraj Sharma
+     * @createdDate : 16 July 2024
+*/
+    public static void calExpectedRevenue(List<Opportunity> opportunities) {
+        Map<String, Decimal> productRatesMap = new Map<String, Decimal>();
+        try {
+            for(Product_Rate_Metadata__mdt productRate : [SELECT Product_Name__c, Product_Current_Rate__c FROM Product_Rate_Metadata__mdt]) {
+                productRatesMap.put(productRate.Product_Name__c, productRate.Product_Current_Rate__c);
+            }
+            if(productRatesMap.size() > 0) {
+                for(Opportunity opportunity : opportunities) {
+                    if( opportunity.Interested_Product__c != null && opportunity.Quantity__c != null && productRatesMap.get(opportunity.Interested_Product__c) != null ) {
+                        //Amount and probablity will help to calculate the expected revenue field on opportunity. We could create a custom field which will have the same value as amount
+                        opportunity.Amount = (Integer.valueOf(opportunity.Quantity__c) * (productRatesMap.get(opportunity.Interested_Product__c)));
+                        opportunity.Probability = 100;
+                        opportunity.Applied_Product_Rate__c	= String.valueOf(productRatesMap.get(opportunity.Interested_Product__c));
+                    }
+                }
+            }//Following bottom up approach of exception handling catching different exception to send out detail method and perform any activity we want based on different exception
+        } catch(QueryException queryExcep) {
+            //send email to salesforce dev team with exception details by using additional methods of QueryException like getInaccessibleFields() which will be faster to debug
+        } catch(MathException mathExcep) {
+            //send email to salesforce dev team with exception details and calculation made such as using mod operator in above for loop 
+        } catch(Exception excep) {
+            //Send Exception Email to SF dev team
+        }
+    }
+    
+    /*
+     * @description : This method updates the stage as closing if closing date is within next 30 when the opportunity was created/updated. Close date is required field so not adding 
+     * 					null check
+     * @param : opportunities typeOf List<Opportunity>
+     * @return: void
+     * @author: Dharmraj Sharma
+     * @createdDate : 16 July 2024
+*/
+    public static void updateOpportunityStage(List<Opportunity> opportunities) {
+        try {
+            for(Opportunity opportunity : opportunities) {
+                if(Date.today().addDays(30).isSameDay(opportunity.CloseDate)) {
+                    opportunity.StageName = 'Closing';
+                }                
+            }
+        } catch(Exception excep) {
+            //Send Exception Email to SF dev team
+        }
+    }
+}

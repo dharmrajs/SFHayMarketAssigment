@@ -1,0 +1,22 @@
+/*
+ * @description : This class acts as test class for OpportunityTrigger.apxt and OpportunityTriggerHandler.apxc
+ * @author : Dharmraj Sharma
+ * @createdDate : 16 July 2024
+*/
+@isTest
+public class OpportunityTriggerTest {
+    
+    @isTest
+    public static void testInsertAndUpdateTriggerOnOpp() {
+        Opportunity opp = new Opportunity();
+        opp.Name = 'Test';
+        opp.Interested_Product__c = 'Product 1';
+        opp.Quantity__c = '2';
+        opp.CloseDate = Date.today().addDays(30);
+        insert opp;
+        Opportunity retrievedOpp = [SELECT Id, StageName, Applied_Product_Rate__c from Opportunity where Id =: opp.Id];
+        Assert.areNotEqual(null, retrievedOpp.Applied_Product_Rate__c, 'Applied rate should be there for tracking purpose');
+        Assert.areEqual('Closing', retrievedOpp.StageName, 'StageName Should be closing');
+    }
+
+}

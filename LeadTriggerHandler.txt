@@ -1,0 +1,93 @@
+/*
+ * @description : This class acts as lead trigger handler to follow trigger helper design pattern which contains all the methods which are required by trigger. This class runs in 
+ * 					with sharing mode so need to give this class access to required profiles
+ * @author	: Dharmraj Sharma
+ * @createdDate : 15 July 2024
+ * @lastmodified: 16 July 2024
+ * @lastModifiedBy : Dharmraj Sharma
+*/
+public with sharing class LeadTriggerHandler {
+
+	//constants kept as static on class level
+    public static final string SALES_USER_PROFILE = 'Sales User';
+    
+    /*
+     * @description : This method runs logic of round robin to assign leads when inserted in bulk to optimize the work load. It uses round robin algoritm to distribute the work
+     * @param  : leads typeOf List<Lead>
+     * @return : void
+     * @author : Dharmraj Sharma
+     * @createdDate : 15 July 2024
+     * @lastModifiedDate : 16 July 2024
+	 * @lastModifiedBy : Dharmraj Sharma
+	*/
+    public static void runRoundRobinOnLead(List<Lead> leads) {
+        Set<String> leadRRCode = new Set<String>();
+        Map<String, List<User>> userToRRCodeMap = new Map<String, List<User>>();
+        Map<String, Integer> rrCodeCountforAssignment = new Map<String, Integer>();
+        try {
+            //Store RR codes to query below
+            for( Lead lead : leads ) {
+                leadRRCode.add( lead.RR_Code__c );
+            }
+            //Query on user based on profile name and isActive
+            for( User user : [SELECT Id, Name, RR_Code__c FROM User WHERE Profile.Name =: SALES_USER_PROFILE and IsActive  = true] ) {
+                if( userToRRCodeMap.get(user.RR_Code__c) != null ) {
+                    userToRRCodeMap.get(user.RR_Code__c).add(user);
+                } else {
+                    userToRRCodeMap.put(user.RR_Code__c, new List<User> {user});
+                    rrCodeCountforAssignment.put(user.RR_Code__c, 0);
+                }
+            }
+            //Now loop over leads list
+            for( Lead lead : leads ) {
+                //If any criteria is not satisfied then owner will be current user that is by default SF functionality
+                if( rrCodeCountforAssignment.get(lead.RR_Code__c) != null && userToRRCodeMap.get(lead.RR_Code__c).size() > 0 ) {
+                    integer rrIdx = rrCodeCountforAssignment.get(lead.RR_Code__c);
+                    integer userIdx = Math.mod((rrIdx + 1), userToRRCodeMap.get(lead.RR_Code__c).size());
+                    User user = userToRRCodeMap.get(lead.RR_Code__c)[userIdx];
+                    rrCodeCountforAssignment.put(lead.RR_Code__c, rrIdx++);
+                    lead.OwnerId = user.Id;                
+                }
+            }//Following bottom up approach of exception handling catching different exception to send out detail method and perform any activity we want based on different exception
+        } catch(QueryException queryExcep) {
+            //send email to salesforce dev team with exception details by using additional methods of QueryException like getInaccessibleFields() which will be faster to debug
+        } catch(MathException mathExcep) {
+         	//send email to salesforce dev team with exception details and calculation made such as using mod operator in above for loop 
+        } catch(ListException listExcep) {
+            //Send email to salesfor dev team with exception detail and extra details like send list variable used so that it is faster to debug
+        } catch(Exception excep) {
+            //send email to salesforce dev team with exception details
+        }
+    }
+    
+    
+    /*
+     * @description : This method runs lead qualification validation on email and phone using regex. This method is expected to run in before insert or before update event so that 
+     * 					if validation fails then we stop the commit using .addError() method
+     * @param : leads typeOf List<Lead>
+     * @return: void
+     * @author: Dharmraj Sharma
+     * @createdDate : 15 July 2024
+     * @lastModifiedDate : 16 July 2024
+	 * @lastModifiedBy : Dharmraj Sharma
+	*/
+    public static void leadQualificationValidation(List<Lead> leads) {
+		Pattern leadEmailPattern = Pattern.compile('^[a-zA-Z0-9._]+@[a-zA-Z]+\\.[a-zA-Z]{2,}$');
+		Pattern leadPhonePattern = Pattern.compile('^\\(?(\\d{3})\\)?[- ]?(\\d{3})[- ]?(\\d{4})$'); 
+        try{
+            for(Lead lead : leads) {
+                if(lead.IsConverted) {
+                    Matcher leadEmailMatcher = leadEmailPattern.matcher(lead.Email);
+                    Matcher leadPhoneMatcher = leadPhonePattern.matcher(lead.Phone);
+                    //Even if we single matches() fails we stop record commit using .addError()
+                    if( !leadEmailMatcher.matches() || !leadPhoneMatcher.matches() ) {
+                        lead.addError('Valid email and phone needed conversion');
+                    }
+                }
+            }
+        } catch(Exception excep) {
+            //send email to salesforce dev team with exception details
+        }
+    }
+    
+}

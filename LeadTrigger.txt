@@ -1,0 +1,27 @@
+/*
+ * @description : This trigger gets triggered on lead object activity before insert and before update
+ * @author: Dharmraj Sharma
+ * @createdDate  : 15 July 2024
+ * @lastModified : 16 July 2024
+ * @lastModifiedBy : Dharmraj Sharma
+*/
+trigger LeadTrigger on Lead (before insert, before Update) {
+
+    //Cyclomatic complexity is 2 APEX PMD will pass this
+    if(Trigger.isBefore) {
+        if(Trigger.isInsert) {
+            //Run round robin in before insert event before record is commited the lead will have the owner on the record. We could run this piece of code in update event also if
+            //we know that user tend to update product and state to run round robin
+            //This method is bulkified
+            LeadTriggerHandler.runRoundRobinOnLead(Trigger.new);
+        }
+        if(Trigger.isInsert || Trigger.isUpdate) {
+            //Run lead qualification validation in insert or update event because phone number may be entered any time either while insertion or updation in lead journey
+            //This method is bulkified
+			LeadTriggerHandler.leadQualificationValidation(Trigger.new);            
+        }
+    } else {
+        //Do after events activity
+    }
+    
+}

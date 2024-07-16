@@ -1,0 +1,65 @@
+/*
+ * @description : This class acts as test class for LeadTrigger.apxt and LeadTriggerHandler.apxc
+ * @author : Dharmraj Sharma
+ * @createdDate : 16 July 2024
+*/
+
+@isTest
+public class LeadTriggerTest {
+
+    @TestSetup
+    public static void testSetUpMethod() {
+        Profile salesUserProfile = [SELECT Id, Name from Profile where Name = 'Sales User'];
+        User user = new User();
+        user.FirstName = 'Test';
+        user.LastName = 'Test';
+        user.RR_Code__c = 'MHAgriculture';
+        user.Email = 'test@test.com';
+        user.ProfileId = salesUserProfile.Id;
+        user.EmailEncodingKey='UTF-8';
+        user.LocaleSidKey='en_US';
+        user.LanguageLocaleKey='en_US';
+        user.TimeZoneSidKey='America/Los_Angeles';
+        user.IsActive = true;
+        user.UserName='Test@theOffice.com';
+        user.Alias = 'Test';
+        insert user;
+        Lead lead = new Lead();
+        lead.FirstName = 'Test';
+        lead.LastName = 'SharmaTest';
+        lead.Email = 'Test@theoffice.com';
+        lead.Phone = '9090190901';
+        lead.Company = 'TheOffice';
+        lead.Industry = 'Agriculture';
+        lead.State_Code__c = 'MH';
+        insert lead;
+    }
+    
+    @isTest
+    public static void testLeadQualification() {
+        Lead leadObj = [SELECT Id, Email, Phone from Lead where FirstName = 'Test'];
+        Database.LeadConvert convertLead = new database.LeadConvert();
+        convertLead.setLeadId(leadObj.id);
+        convertLead.setDoNotCreateOpportunity(false);
+        convertLead.setConvertedStatus('Closed - Converted');
+        
+        Database.LeadConvertResult leadConRes = Database.convertLead(convertLead);
+    }
+    
+    @isTest
+    public static void testFailLeadQualification() {
+        Lead leadObj = [SELECT Id, Email, Phone from Lead where FirstName = 'Test'];
+        leadObj.Phone = '8989';
+        update LeadObj;
+        Database.LeadConvert convertLead = new database.LeadConvert();
+        convertLead.setLeadId(leadObj.id);
+        convertLead.setDoNotCreateOpportunity(false);
+        convertLead.setConvertedStatus('Closed - Converted');
+        try {
+	        Database.LeadConvertResult leadConRes = Database.convertLead(convertLead);            
+        } catch (Exception excep) {
+            Assert.areNotEqual(null, excep, 'Exception object should not be null');
+        }
+    }
+    
+}
